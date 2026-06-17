@@ -73,6 +73,10 @@ tr:hover td{background:var(--bg2);}
 .link-box{background:var(--bg2);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text2);display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
 .loading{text-align:center;padding:2rem;color:var(--text2);font-size:13px;}
 .error-msg{background:#FCEBEB;color:#A32D2D;border-radius:var(--radius);padding:10px 14px;font-size:13px;margin-bottom:12px;}
+.search-box{display:flex;align-items:center;gap:6px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);padding:6px 10px;flex:1;max-width:260px;}
+.search-box input{border:none;background:none;outline:none;font-size:13px;width:100%;color:var(--text);}
+.result-count{font-size:11px;color:var(--text2);margin-bottom:8px;display:none;}
+.no-result{text-align:center;padding:1.5rem;color:var(--text2);font-size:13px;display:none;}
 </style>
 </head>
 <body>
@@ -163,7 +167,7 @@ tr:hover td{background:var(--bg2);}
 
       <!-- 대시보드 -->
       <div id="ap0" class="admin-panel active">
-        <div style="font-size:16px;font-weight:500;margin-bottom:1rem;">대시보드</div>
+        <div style="font-size:16px;font-weight:500;margin-bottom:1rem;">대시보드</div><div class="search-box"><i class="ti ti-search"></i><input type="text" placeholder="학생 이름 검색..." oninput="searchTable('dashboard-tbody',this.value,'dash-count','dash-empty')"></div>
         <div class="stat-grid">
           <div class="stat-card"><div style="font-size:12px;color:var(--text2);margin-bottom:4px;">전체 학생</div><div style="font-size:22px;font-weight:500;" id="stat-total">—</div></div>
           <div class="stat-card"><div style="font-size:12px;color:var(--text2);margin-bottom:4px;">수강권 0명</div><div style="font-size:22px;font-weight:500;color:var(--burgundy);" id="stat-noticket">—</div></div>
@@ -174,7 +178,7 @@ tr:hover td{background:var(--bg2);}
       <!-- 학생 관리 -->
       <div id="ap1" class="admin-panel">
         <div class="row" style="margin-bottom:1rem;">
-          <div style="font-size:16px;font-weight:500;">학생 관리</div>
+          <div style="font-size:16px;font-weight:500;">학생 관리</div><div class="search-box"><i class="ti ti-search"></i><input type="text" placeholder="학생 이름 검색..." oninput="searchTable('student-tbody',this.value,'student-count','student-empty')"></div>
           <button class="btn btn-brand btn-small" onclick="openModal('add-student-modal')">+ 학생 추가</button>
         </div>
         <div class="card" style="padding:0.5rem 1rem;"><div id="student-table"><div class="loading">불러오는 중...</div></div></div>
@@ -182,7 +186,7 @@ tr:hover td{background:var(--bg2);}
 
       <!-- 숙제 관리 -->
       <div id="ap2" class="admin-panel">
-        <div style="font-size:16px;font-weight:500;margin-bottom:1rem;">숙제 관리</div>
+        <div style="font-size:16px;font-weight:500;margin-bottom:1rem;">숙제 관리</div><div class="search-box"><i class="ti ti-search"></i><input type="text" placeholder="학생 이름 검색..." oninput="searchTable('hw-admin-tbody',this.value,'hw-count','hw-empty')"></div>
         <div class="card" style="max-width:520px;margin-bottom:1.5rem;">
           <div class="section-label">숙제 등록</div>
           <div id="hw-error" class="error-msg hidden"></div>
@@ -207,7 +211,7 @@ tr:hover td{background:var(--bg2);}
 
       <!-- 수강권 관리 -->
       <div id="ap3" class="admin-panel">
-        <div style="font-size:16px;font-weight:500;margin-bottom:1rem;">수강권 관리</div>
+        <div style="font-size:16px;font-weight:500;margin-bottom:1rem;">수강권 관리</div><div class="search-box"><i class="ti ti-search"></i><input type="text" placeholder="학생 이름 검색..." oninput="searchTable('ticket-tbody',this.value,'ticket-count','ticket-empty')"></div>
         <div class="card" style="padding:0.75rem 1.25rem;"><div id="ticket-table"><div class="loading">불러오는 중...</div></div></div>
       </div>
 
@@ -402,19 +406,19 @@ function renderDashboard() {
   document.getElementById('stat-noticket').textContent = adminStudents.filter(function(s){ return s.delay_tickets==0&&s.makeup_tickets==0; }).length;
   var tbl = document.getElementById('dashboard-table');
   if (!adminStudents.length) { tbl.innerHTML='<div style="font-size:13px;color:var(--text2);padding:8px;">등록된 학생이 없습니다.</div>'; return; }
-  tbl.innerHTML = '<table><tr><th>이름</th><th>과목</th><th>수업시간</th><th>수강권</th><th>상태</th></tr>'+
+  tbl.innerHTML = '<table><tbody id="dashboard-tbody"><tr><th>이름</th><th>과목</th><th>수업시간</th><th>수강권</th><th>상태</th></tr>'+
     adminStudents.map(function(s){
       var noT=s.delay_tickets==0&&s.makeup_tickets==0;
-      return '<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td><td><span class="badge badge-brand">'+s.subject+'</span></td><td style="font-size:12px;">'+s.schedule+'</td><td style="font-size:12px;">딜레이'+s.delay_tickets+' 보강'+s.makeup_tickets+'</td><td><span class="badge '+(noT?'badge-danger':'badge-ok')+'">'+(noT?'수강권0':'정상')+'</span></td></tr>';
+      return '<tr data-name="'+s.name+'"><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td><td><span class="badge badge-brand">'+s.subject+'</span></td><td style="font-size:12px;">'+s.schedule+'</td><td style="font-size:12px;">딜레이'+s.delay_tickets+' 보강'+s.makeup_tickets+'</td><td><span class="badge '+(noT?'badge-danger':'badge-ok')+'">'+(noT?'수강권0':'정상')+'</span></td></tr>';
     }).join('')+'</table>';
 }
 
 function renderStudentTable() {
   var tbl = document.getElementById('student-table');
   if (!adminStudents.length) { tbl.innerHTML='<div style="font-size:13px;color:var(--text2);padding:8px;">등록된 학생이 없습니다.</div>'; return; }
-  tbl.innerHTML = '<table><tr><th>이름</th><th>과목</th><th>수업시간</th><th>담당강사</th><th>링크</th><th>수정</th><th>삭제</th></tr>'+
+  tbl.innerHTML = '<table><tbody id="student-tbody"><tr><th>이름</th><th>과목</th><th>수업시간</th><th>담당강사</th><th>링크</th><th>수정</th><th>삭제</th></tr>'+
     adminStudents.map(function(s){
-      return '<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td><td><span class="badge badge-brand">'+s.subject+'</span></td><td style="font-size:12px;">'+s.schedule+'</td><td style="font-size:12px;">'+s.teacher+'</td>'+
+      return '<tr data-name="'+s.name+'"><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td><td><span class="badge badge-brand">'+s.subject+'</span></td><td style="font-size:12px;">'+s.schedule+'</td><td style="font-size:12px;">'+s.teacher+'</td>'+
         '<td><button class="btn btn-small" onclick="showLinkModal(\''+s.name+'\',\''+s.link_key+'\')">링크</button></td>'+
         '<td><button class="btn btn-small" onclick="openEditStudent(\''+s.id+'\',\''+s.name+'\',\''+s.teacher+'\',\''+s.subject+'\',\''+s.schedule+'\')">수정</button></td>'+
         '<td><button class="btn btn-small btn-danger" onclick="doDeleteStudent(\''+s.id+'\',\''+s.name+'\')">삭제</button></td></tr>';
@@ -424,9 +428,9 @@ function renderStudentTable() {
 function renderTicketTable() {
   var tbl = document.getElementById('ticket-table');
   if (!adminStudents.length) { tbl.innerHTML='<div style="font-size:13px;color:var(--text2);padding:8px;">등록된 학생이 없습니다.</div>'; return; }
-  tbl.innerHTML = '<table><tr><th>학생</th><th>딜레이권</th><th>보강권</th></tr>'+
+  tbl.innerHTML = '<table><tbody id="ticket-tbody"><tr><th>학생</th><th>딜레이권</th><th>보강권</th></tr>'+
     adminStudents.map(function(s,i){
-      return '<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td>'+
+      return '<tr data-name="'+s.name+'"><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td>'+
         '<td><div style="display:flex;align-items:center;gap:6px;"><button class="btn btn-small" onclick="chgTicket('+i+',\'delay\',-1)">−</button><span id="dt-'+i+'" style="min-width:20px;text-align:center;font-weight:500;">'+s.delay_tickets+'</span><button class="btn btn-small" onclick="chgTicket('+i+',\'delay\',1)">+</button></div></td>'+
         '<td><div style="display:flex;align-items:center;gap:6px;"><button class="btn btn-small" onclick="chgTicket('+i+',\'makeup\',-1)">−</button><span id="mt-'+i+'" style="min-width:20px;text-align:center;font-weight:500;">'+s.makeup_tickets+'</span><button class="btn btn-small" onclick="chgTicket('+i+',\'makeup\',1)">+</button></div></td></tr>';
     }).join('')+'</table><div style="margin-top:12px;text-align:right;"><button class="btn btn-brand btn-small" onclick="saveTickets()">변경사항 저장</button></div>';
@@ -447,9 +451,9 @@ function loadAllHomework() {
     if (!res.success || !res.homeworks.length) { list.innerHTML='<div style="font-size:13px;color:var(--text2);padding:8px;">등록된 숙제가 없습니다.</div>'; return; }
     var studentMap = {};
     adminStudents.forEach(function(s){ studentMap[s.id]=s.name; });
-    list.innerHTML = '<table><tr><th>학생</th><th>제목</th><th>마감일</th><th>상세안내</th><th>수정</th><th>삭제</th></tr>'+
+    list.innerHTML = '<table><tbody id="hw-admin-tbody"><tr><th>학생학생</th><th>제목</th><th>마감일</th><th>상세안내</th><th>수정</th><th>삭제</th></tr>'+
       res.homeworks.map(function(hw){
-        return '<tr><td style="font-size:12px;">'+(studentMap[hw.student_id]||hw.student_id)+'</td><td style="font-size:13px;font-weight:500;">'+hw.title+'</td><td style="font-size:12px;">'+hw.deadline+'</td><td style="font-size:12px;color:var(--text2);">'+(hw.description||'')+'</td>'+
+        return '<tr data-name="'+(studentMap[hw.student_id]||'')+'"><td style="font-size:12px;">'+(studentMap[hw.student_id]||hw.student_id)+'</td><td style="font-size:13px;font-weight:500;">'+hw.title+'</td><td style="font-size:12px;">'+hw.deadline+'</td><td style="font-size:12px;color:var(--text2);">'+(hw.description||'')+'</td>'+
           '<td><button class="btn btn-small" onclick="openEditHomework(\''+hw.id+'\',\''+hw.title.replace(/'/g,"\\'")+'\',\''+hw.deadline+'\',\'\')" >수정</button></td>'+
           '<td><button class="btn btn-small btn-danger" onclick="doDeleteHomework(\''+hw.id+'\',\''+hw.title.replace(/'/g,"\\'")+'\')">삭제</button></td></tr>';
       }).join('')+'</table>';
@@ -578,6 +582,7 @@ function addSubject() {
   div.innerHTML='<span>'+v+'</span><button class="btn btn-small btn-danger" onclick="this.parentElement.remove()">삭제</button>';
   document.getElementById('subject-list').appendChild(div); inp.value='';
 }
+function searchTable(tbodyId,query,countId,emptyId){var tbody=document.getElementById(tbodyId);if(!tbody)return;var rows=tbody.querySelectorAll('tr');var q=query.trim().toLowerCase();var visible=0;rows.forEach(function(row){var name=(row.getAttribute('data-name')||'').toLowerCase();var show=!q||name.includes(q);row.style.display=show?'':'none';if(show)visible++;});var countEl=document.getElementById(countId);var emptyEl=document.getElementById(emptyId);if(countEl){if(q){countEl.textContent=visible+'명 검색됨';countEl.style.display='block';}else{countEl.style.display='none';}}if(emptyEl){emptyEl.style.display=(visible===0&&q)?'block':'none';}}  
 </script>
 </body>
 </html>
