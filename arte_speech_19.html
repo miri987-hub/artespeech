@@ -30,6 +30,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn:hover{background:var(--bg2);}
 .btn-brand{background:var(--burgundy);color:#fff;border-color:var(--burgundy);}
 .btn-brand:hover{background:var(--burgundy-light);}
+.btn-brand:disabled{opacity:0.6;cursor:not-allowed;}
 .btn-small{padding:5px 10px;font-size:12px;}
 .btn-danger{background:#FCEBEB;color:#A32D2D;border-color:#F09595;}
 .card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:12px;}
@@ -433,7 +434,7 @@ function renderTicketTable() {
       return '<tr data-name="'+s.name+'"><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td>'+
         '<td><div style="display:flex;align-items:center;gap:6px;"><button class="btn btn-small" onclick="chgTicket('+i+',\'delay\',-1)">−</button><span id="dt-'+i+'" style="min-width:20px;text-align:center;font-weight:500;">'+s.delay_tickets+'</span><button class="btn btn-small" onclick="chgTicket('+i+',\'delay\',1)">+</button></div></td>'+
         '<td><div style="display:flex;align-items:center;gap:6px;"><button class="btn btn-small" onclick="chgTicket('+i+',\'makeup\',-1)">−</button><span id="mt-'+i+'" style="min-width:20px;text-align:center;font-weight:500;">'+s.makeup_tickets+'</span><button class="btn btn-small" onclick="chgTicket('+i+',\'makeup\',1)">+</button></div></td></tr>';
-    }).join('')+'</table><div style="margin-top:12px;text-align:right;"><button class="btn btn-brand btn-small" onclick="saveTickets()">변경사항 저장</button></div>';
+    }).join('')+'</table><div style="margin-top:12px;text-align:right;"><button class="btn btn-brand btn-small" id="save-tickets-btn" onclick="saveTickets()">변경사항 저장</button></div>';
 }
 
 function renderHomeworkStudentSelect() {
@@ -463,11 +464,45 @@ function loadAllHomework() {
 function chgTicket(idx,type,d) {
   if (type==='delay') { adminStudents[idx].delay_tickets=Math.max(0,parseInt(adminStudents[idx].delay_tickets)+d); document.getElementById('dt-'+idx).textContent=adminStudents[idx].delay_tickets; }
   else { adminStudents[idx].makeup_tickets=Math.max(0,parseInt(adminStudents[idx].makeup_tickets)+d); document.getElementById('mt-'+idx).textContent=adminStudents[idx].makeup_tickets; }
+  adminStudents[idx]._dirty = true;
 }
 
 function saveTickets() {
-  var promises = adminStudents.map(function(s){ return jsonp({action:'updateTickets', student_id:s.id, delay_tickets:s.delay_tickets, makeup_tickets:s.makeup_tickets}); });
-  Promise.all(promises).then(function(){ alert('저장 완료!'); }).catch(function(){ alert('저장 중 오류가 발생했습니다.'); });
+  var dirty = adminStudents.filter(function(s){ return s._dirty; });
+  if (!dirty.length) { alert('변경된 내용이 없습니다.'); return; }
+
+  var btn = document.getElementById('save-tickets-btn');
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '저장 중... (0/' + dirty.length + ')';
+
+  var failedNames = [];
+  var i = 0;
+
+  function saveNext() {
+    if (i >= dirty.length) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      if (failedNames.length) {
+        alert('일부 저장에 실패했습니다: ' + failedNames.join(', ') + '\n다시 시도해주세요.');
+      } else {
+        alert('저장 완료!');
+      }
+      return;
+    }
+    var s = dirty[i];
+    jsonp({action:'updateTickets', student_id:s.id, delay_tickets:s.delay_tickets, makeup_tickets:s.makeup_tickets}).then(function(res){
+      if (res && res.success) { s._dirty = false; }
+      else { failedNames.push(s.name); }
+    }).catch(function(){
+      failedNames.push(s.name);
+    }).then(function(){
+      i++;
+      btn.textContent = '저장 중... (' + i + '/' + dirty.length + ')';
+      saveNext();
+    });
+  }
+  saveNext();
 }
 
 function doAddHomework() {
