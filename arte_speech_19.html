@@ -78,6 +78,10 @@ tr:hover td{background:var(--bg2);}
 .search-box input{border:none;background:none;outline:none;font-size:13px;width:100%;color:var(--text);}
 .result-count{font-size:11px;color:var(--text2);margin-bottom:8px;display:none;}
 .no-result{text-align:center;padding:1.5rem;color:var(--text2);font-size:13px;display:none;}
+.hw-student-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);margin-top:4px;max-height:220px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+.hw-student-dropdown-item{padding:8px 12px;font-size:13px;cursor:pointer;}
+.hw-student-dropdown-item:hover{background:var(--bg2);}
+.hw-student-dropdown-empty{padding:8px 12px;font-size:13px;color:var(--text2);}
 </style>
 </head>
 <body>
@@ -192,7 +196,12 @@ tr:hover td{background:var(--bg2);}
           <div class="section-label">숙제 등록</div>
           <div id="hw-error" class="error-msg hidden"></div>
           <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
-            <div><div class="section-label" style="margin-bottom:4px;">학생 선택</div><select id="hw-student"></select></div>
+            <div style="position:relative;">
+              <div class="section-label" style="margin-bottom:4px;">학생 선택</div>
+              <input type="text" id="hw-student-search" placeholder="이름을 작성해주세요" autocomplete="off" onfocus="showHwStudentDropdown()" oninput="filterHwStudentDropdown()" onblur="setTimeout(function(){hideHwStudentDropdown()},150)"/>
+              <input type="hidden" id="hw-student"/>
+              <div id="hw-student-dropdown" class="hw-student-dropdown hidden"></div>
+            </div>
             <div><div class="section-label" style="margin-bottom:4px;">숙제 제목</div><input type="text" id="hw-title" placeholder="예: 자기소개 영상 녹화"/></div>
             <div><div class="section-label" style="margin-bottom:4px;">상세 안내</div><textarea id="hw-desc" placeholder="학생에게 보여줄 상세 설명"></textarea></div>
             <div><div class="section-label" style="margin-bottom:4px;">마감일</div><input type="text" id="hw-deadline" placeholder="예: 6월 20일"/></div>
@@ -318,6 +327,8 @@ var API = 'https://script.google.com/macros/s/AKfycbykvveYI4O-3iQHjjxoWBQ12IzBne
 var BASE_URL = window.location.href.split('?')[0];
 var currentStudent = null;
 var adminStudents = [];
+var hwStudentList = [];
+var hwDataMap = {};
 
 function jsonp(params) {
   return new Promise(function(resolve, reject) {
@@ -420,9 +431,9 @@ function renderStudentTable() {
   tbl.innerHTML = '<table><tbody id="student-tbody"><tr><th>이름</th><th>과목</th><th>수업시간</th><th>담당강사</th><th>링크</th><th>수정</th><th>삭제</th></tr>'+
     adminStudents.map(function(s){
       return '<tr data-name="'+s.name+'"><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar">'+s.name.substring(0,2)+'</div>'+s.name+'</div></td><td><span class="badge badge-brand">'+s.subject+'</span></td><td style="font-size:12px;">'+s.schedule+'</td><td style="font-size:12px;">'+s.teacher+'</td>'+
-        '<td><button class="btn btn-small" onclick="showLinkModal(\''+s.name+'\',\''+s.link_key+'\')">링크</button></td>'+
-        '<td><button class="btn btn-small" onclick="openEditStudent(\''+s.id+'\',\''+s.name+'\',\''+s.teacher+'\',\''+s.subject+'\',\''+s.schedule+'\')">수정</button></td>'+
-        '<td><button class="btn btn-small btn-danger" onclick="doDeleteStudent(\''+s.id+'\',\''+s.name+'\')">삭제</button></td></tr>';
+        '<td><button class="btn btn-small" onclick="showLinkModalById(\''+s.id+'\')">링크</button></td>'+
+        '<td><button class="btn btn-small" onclick="openEditStudentById(\''+s.id+'\')">수정</button></td>'+
+        '<td><button class="btn btn-small btn-danger" onclick="doDeleteStudentById(\''+s.id+'\')">삭제</button></td></tr>';
     }).join('')+'</table>';
 }
 
@@ -438,10 +449,42 @@ function renderTicketTable() {
 }
 
 function renderHomeworkStudentSelect() {
-  var sel = document.getElementById('hw-student');
-  if (sel) sel.innerHTML = adminStudents.map(function(s){ return '<option value="'+s.id+'">'+s.name+'</option>'; }).join('');
+  hwStudentList = adminStudents.map(function(s){ return {id:s.id, name:s.name}; });
   var fsel = document.getElementById('hw-filter-student');
   if (fsel) fsel.innerHTML = '<option value="all">전체 학생</option>' + adminStudents.map(function(s){ return '<option value="'+s.id+'">'+s.name+'</option>'; }).join('');
+  var searchInput = document.getElementById('hw-student-search');
+  var hidden = document.getElementById('hw-student');
+  if (searchInput) searchInput.value = '';
+  if (hidden) hidden.value = '';
+}
+
+function showHwStudentDropdown() {
+  filterHwStudentDropdown();
+}
+
+function hideHwStudentDropdown() {
+  var dd = document.getElementById('hw-student-dropdown');
+  if (dd) dd.classList.add('hidden');
+}
+
+function filterHwStudentDropdown() {
+  var q = document.getElementById('hw-student-search').value.trim().toLowerCase();
+  var matches = hwStudentList.filter(function(s){ return !q || s.name.toLowerCase().indexOf(q)!==-1; });
+  var dd = document.getElementById('hw-student-dropdown');
+  if (!matches.length) {
+    dd.innerHTML = '<div class="hw-student-dropdown-empty">검색 결과가 없습니다.</div>';
+  } else {
+    dd.innerHTML = matches.map(function(s){
+      return '<div class="hw-student-dropdown-item" onmousedown="selectHwStudent(\''+s.id+'\',\''+s.name.replace(/'/g,"\\'")+'\')">'+s.name+'</div>';
+    }).join('');
+  }
+  dd.classList.remove('hidden');
+}
+
+function selectHwStudent(id, name) {
+  document.getElementById('hw-student-search').value = name;
+  document.getElementById('hw-student').value = id;
+  hideHwStudentDropdown();
 }
 
 function loadAllHomework() {
@@ -452,11 +495,13 @@ function loadAllHomework() {
     if (!res.success || !res.homeworks.length) { list.innerHTML='<div style="font-size:13px;color:var(--text2);padding:8px;">등록된 숙제가 없습니다.</div>'; return; }
     var studentMap = {};
     adminStudents.forEach(function(s){ studentMap[s.id]=s.name; });
+    hwDataMap = {};
+    res.homeworks.forEach(function(hw){ hwDataMap[hw.id] = hw; });
     list.innerHTML = '<table><tbody id="hw-admin-tbody"><tr><th>학생학생</th><th>제목</th><th>마감일</th><th>상세안내</th><th>수정</th><th>삭제</th></tr>'+
       res.homeworks.map(function(hw){
         return '<tr data-name="'+(studentMap[hw.student_id]||'')+'"><td style="font-size:12px;">'+(studentMap[hw.student_id]||hw.student_id)+'</td><td style="font-size:13px;font-weight:500;">'+hw.title+'</td><td style="font-size:12px;">'+hw.deadline+'</td><td style="font-size:12px;color:var(--text2);">'+(hw.description||'')+'</td>'+
-          '<td><button class="btn btn-small" onclick="openEditHomework(\''+hw.id+'\',\''+hw.title.replace(/'/g,"\\'")+'\',\''+hw.deadline+'\',\'\')" >수정</button></td>'+
-          '<td><button class="btn btn-small btn-danger" onclick="doDeleteHomework(\''+hw.id+'\',\''+hw.title.replace(/'/g,"\\'")+'\')">삭제</button></td></tr>';
+          '<td><button class="btn btn-small" onclick="openEditHomeworkById(\''+hw.id+'\')" >수정</button></td>'+
+          '<td><button class="btn btn-small btn-danger" onclick="doDeleteHomeworkById(\''+hw.id+'\')">삭제</button></td></tr>';
       }).join('')+'</table>';
   }).catch(function(){ list.innerHTML='<div style="font-size:13px;color:var(--text2);padding:8px;">불러오기 실패</div>'; });
 }
@@ -511,11 +556,23 @@ function doAddHomework() {
   var title = document.getElementById('hw-title').value.trim();
   var desc = document.getElementById('hw-desc').value.trim();
   var deadline = document.getElementById('hw-deadline').value.trim();
+  if (!studentId) { err.textContent='학생을 선택해주세요.'; err.classList.remove('hidden'); return; }
   if (!title||!deadline) { err.textContent='제목과 마감일을 입력해주세요.'; err.classList.remove('hidden'); return; }
   err.classList.add('hidden');
   jsonp({action:'addHomework', student_id:studentId, title:title, description:desc, deadline:deadline}).then(function(res){
     if (res.success) { alert('숙제가 등록되었습니다!'); document.getElementById('hw-title').value=''; document.getElementById('hw-desc').value=''; document.getElementById('hw-deadline').value=''; loadAllHomework(); }
   }).catch(function(){ err.textContent='오류가 발생했습니다.'; err.classList.remove('hidden'); });
+}
+
+function openEditHomeworkById(id) {
+  var hw = hwDataMap[id];
+  if (!hw) return;
+  openEditHomework(hw.id, hw.title, hw.deadline, hw.description||'');
+}
+
+function doDeleteHomeworkById(id) {
+  var hw = hwDataMap[id];
+  doDeleteHomework(id, hw ? hw.title : '');
 }
 
 function openEditHomework(id, title, deadline, desc) {
@@ -564,6 +621,28 @@ function doAddStudent() {
       loadAdminData();
     }
   }).catch(function(){ err.textContent='오류가 발생했습니다.'; err.classList.remove('hidden'); });
+}
+
+function findStudentById(id) {
+  for (var i=0;i<adminStudents.length;i++) { if (String(adminStudents[i].id)===String(id)) return adminStudents[i]; }
+  return null;
+}
+
+function showLinkModalById(id) {
+  var s = findStudentById(id);
+  if (!s) return;
+  showLinkModal(s.name, s.link_key);
+}
+
+function openEditStudentById(id) {
+  var s = findStudentById(id);
+  if (!s) return;
+  openEditStudent(s.id, s.name, s.teacher, s.subject, s.schedule);
+}
+
+function doDeleteStudentById(id) {
+  var s = findStudentById(id);
+  doDeleteStudent(id, s ? s.name : '');
 }
 
 function openEditStudent(id, name, teacher, subject, schedule) {
