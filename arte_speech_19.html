@@ -348,7 +348,7 @@ window.onload = function() {
   if (key) loadStudentPage(key);
   else showPage('login-page');
 };
-// 날짜 표시용 헬퍼: 캘린더로 입력된 YYYY-MM-DD 값은 "8월 20일 (목)" 형태로 보기 좋게 바꾸고,
+// 날짜 표시용 헬퍼: 캘린더로 입력된 YYYY-MM-DD 값은 "8월 20일" 형태로 보기 좋게 바꾸고,
 // 예전에 자유롭게 텍스트로 적어둔 값(예: "6/22 월요일 수업까지")은 그대로 보여줍니다.
 function fmtDate(v) {
   if (!v) return '';
